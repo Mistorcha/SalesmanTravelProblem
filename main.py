@@ -18,6 +18,7 @@ def assign_nb_cities():
     my_gui.canvas.delete("all")
     my_map.list_of_cities(my_gui)
     my_map.draw_cities(my_gui)
+    my_gui.generation_of_initial_population["state"] = "active"
 
 
 def assign_mutation_rate():
@@ -30,45 +31,71 @@ def assign_pop_size():
     my_gui.pop_size = int(my_gui.pop_size_spinbox.get())
 
 
+def assign_bn_generations():
+    "called if spinbox for number of generations to run is changed"
+    my_gui.nb_generations_to_run = int(my_gui.nb_generations_sb.get())
+    print(my_gui.nb_generations_to_run)
+
+
+def assign_time_between_gen():
+    my_gui.time_between_gen = int(my_gui.time_between_gen_sb.get())
+    print(my_gui.time_between_gen)
+
+
 def draw_population_road(i):
     "called by generate_initial_list_of_roads function"
     if i >= 0:
         my_gui.canvas.delete("all")
         my_map.draw_cities(my_gui)
-        my_gui.initial_list_of_roads[i].draw_road(my_gui)
+        my_gui.list_of_roads[i].draw_road(my_gui)
         my_gui.canvas.after(1, draw_population_road, i-1)
 
 
 def generate_initial_list_of_roads():
     "used to generate a list of objects Population"
-    my_gui.initial_list_of_roads = []
+    my_generations.list_of_roads = []
     for i in range(my_gui.pop_size):
-        my_gui.initial_list_of_roads.append(Population(my_map, my_gui))
-    draw_population_road(len(my_gui.initial_list_of_roads)-1)
+        my_generations.list_of_roads.append(Population(my_map, my_gui))
+    my_gui.information_label["text"] = f"Generation of initial population done\
+, {len(my_generations.list_of_roads)} roads generated"
+    my_gui.generation_of_initial_population["state"] = "disabled"
+
+
+def start():
+    my_generations.go_from_gen_x_to_gen_y()
 ###############################################################################
 
-
-# Class of list of generations ################################################
-class list_of_generations(object):
-
-    def __init__(self, my_gui, my_map):
-        self.gen_ongoing = 0
-        self.list_of_generations = []
-
-    def go_from_gen_x_to_gen_y()
 
 # Class to deal with generations ##############################################
 class Generations(object):
 
-    def __init__(self, population_of_roads):
-        self.generation_number = 0
+    def __init__(self, my_generations, my_gui, my_map):
+        "initialisation of all variables"
+        self.generation_number = my_generations.gen_ongoing
         self.population_sorted = None
+        self.sorting_of_population(my_generations)
 
-    def sorting_of_population(self):
-        self.population_sorted = sorted(population_of_roads,
-                                        key=population_of_roads.road_lenght)
-        print(self.population_sorted)
+    def sorting_of_population(self, my_generations):
+##        for i in my_generations.list_of_roads:
+            print(i.lenght_of_road())
+###############################################################################
 
+
+# Class of list of generations ################################################
+class List_of_generations(object):
+
+    def __init__(self, my_gui, my_map):
+        "number of the previous generation before creating the new one"
+        self.gen_ongoing = 0
+        "keep track of all generations"
+        self.list_of_generations = []
+        "this is the list of the road for each generations"
+        self.list_of_roads = []
+
+    def go_from_gen_x_to_gen_y(self, x=1):
+        for i in range(x):
+            self.gen_ongoing += 1
+            self.list_of_generations.append(Generations(self, my_gui, my_map))
 ###############################################################################
 
 
@@ -140,6 +167,7 @@ class Population(object):
         for i in range(len(self.road_order)-1):
             self.road_lenght += self.square_root(i)
         self.road_lenght += self.square_root(-1)
+        return self.road_lenght
 ###############################################################################
 
 
@@ -167,18 +195,22 @@ class MyGui(object):
         Generation"""
         self.initial_list_of_roads = []
 
+        "variables related to passing of generations"
+        self.time_between_gen = 0
+        self.nb_generations_to_run = 1
+
         "functions to create widgets"
         self.getMainWidgets(root)
         self.getLabelsWidgets(root)
         self.getEntryWidgets(root)
         self.getButtonWidgets(root)
         self.getSpinboxWidgets(root)
-        self.refresh_info()
+        """self.refresh_info()"""
 
-    def refresh_info(self):
+    """def refresh_info(self):
         "Refresh informations of labels every 100 ms"
         self.windows_geometry["text"] = root.winfo_geometry()
-        self.windows_geometry.after(100, self.refresh_info)
+        self.windows_geometry.after(100, self.refresh_info)"""
 
     def getMainWidgets(self, root):
         "Initialisation of canvas"
@@ -193,9 +225,9 @@ class MyGui(object):
         self.buttonframe.grid(row=1, column=1, sticky=tk.NSEW)
 
     def getLabelsWidgets(self, root):
-        "Initialisation of labels widgets related to positionning of windows"
+        """Initialisation of labels widgets related to positionning of windows"
         self.windows_geometry = tk.Label(root, text="test")
-        self.windows_geometry.grid(row=2, column=1)
+        self.windows_geometry.grid(row=2, column=1)"""
 
         "initialisation of label widgets related to variables of the problem"
         self.FrameVariablesTitle = tk.Label(self.frame,
@@ -215,7 +247,18 @@ class MyGui(object):
 
         "initialisation of label widgets related to launch of solving problem"
         self.FrameButtonsTitle = tk.Label(self.buttonframe, text="Buttons???")
-        self.FrameButtonsTitle.grid(row=0, column=0, sticky=tk.NSEW)
+        self.FrameButtonsTitle.grid(row=0, column=0, sticky=tk.NSEW,
+                                    columnspan=2)
+        self.nb_of_generations_to_do_label = tk.Label(self.buttonframe,
+                                                      text="Nb Gen to go: ")
+        self.nb_of_generations_to_do_label.grid(row=2, column=0, sticky=tk.EW)
+        self.time_between_gen_label = tk.Label(self.buttonframe,
+                                               text="Time btwn gen: ")
+        self.time_between_gen_label.grid(row=3, column=0, sticky=tk.EW)
+
+        "initialisation of labels related to progress of solution"
+        self.information_label = tk.Label(root, text="Waiting")
+        self.information_label.grid(row=2, column=0, sticky=tk.W)
 
     def getEntryWidgets(self, root):
         "Initialisation of all entry widgets"
@@ -228,14 +271,16 @@ class MyGui(object):
                 text="Generate list of roads",
                 width=20,
                 command=generate_initial_list_of_roads)
-        self.generation_of_initial_population.grid(row=1, column=0)
+        self.generation_of_initial_population.grid(row=1, column=0,
+                                                   columnspan=2)
 
         self.sorting_of_population_test_button = tk.Button(
                 self.buttonframe,
-                text="test sorting of roads",
+                text="go for n generations",
                 width=20,
                 command=start)
-        self.sorting_of_population_test_button.grid(row=2, column=0)
+        self.sorting_of_population_test_button.grid(row=4, column=0,
+                                                    columnspan=2)
 
     def getSpinboxWidgets(self, root):
         "initiation spinbox related to size of the square of the cities"
@@ -271,6 +316,20 @@ class MyGui(object):
                                             textvariable=self.spinbox4Val,
                                             command=assign_pop_size)
         self.pop_size_spinbox.grid(row=4, column=1)
+        "initialisation of spinbox for the number of generations to run"
+        self.spinbox5Val = tk.StringVar(self.buttonframe, value=1)
+        self.nb_generations_sb = ttk.Spinbox(self.buttonframe, from_=1, to=500,
+                                             increment=1, width=5,
+                                             textvariable=self.spinbox5Val,
+                                             command=assign_bn_generations)
+        self.nb_generations_sb.grid(row=2, column=1)
+        "initialisation of spinbox for time in ms between generations"
+        self.spinbox6Val = tk.StringVar(self.buttonframe, value=0)
+        self.time_between_gen_sb = ttk.Spinbox(self.buttonframe, from_=0,
+                                               to=1000, increment=250, width=5,
+                                               textvariable=self.spinbox6Val,
+                                               command=assign_time_between_gen)
+        self.time_between_gen_sb.grid(row=3, column=1)
 ###############################################################################
 
 
@@ -279,6 +338,6 @@ if __name__ == "__main__":
     root = tk.Tk()
     my_gui = MyGui(root)
     my_map = Map(my_gui)
+    my_generations = List_of_generations(my_gui, my_map)
     root.mainloop()
 ###############################################################################
-
