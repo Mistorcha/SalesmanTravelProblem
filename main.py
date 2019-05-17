@@ -2,6 +2,7 @@ import tkinter as tk
 import random as rdm
 from math import sqrt
 import tkinter.ttk as ttk
+import time as time
 
 
 # List of all fuctions for the software #######################################
@@ -34,12 +35,10 @@ def assign_pop_size():
 def assign_bn_generations():
     "called if spinbox for number of generations to run is changed"
     my_gui.nb_generations_to_run = int(my_gui.nb_generations_sb.get())
-    print(my_gui.nb_generations_to_run)
 
 
 def assign_time_between_gen():
     my_gui.time_between_gen = int(my_gui.time_between_gen_sb.get())
-    print(my_gui.time_between_gen)
 
 
 def draw_population_road(i):
@@ -62,7 +61,7 @@ def generate_initial_list_of_roads():
 
 
 def start():
-    my_generations.go_from_gen_x_to_gen_y()
+    my_generations.go_from_gen_x_to_gen_y(my_gui.nb_generations_to_run)
 ###############################################################################
 
 
@@ -72,12 +71,82 @@ class Generations(object):
     def __init__(self, my_generations, my_gui, my_map):
         "initialisation of all variables"
         self.generation_number = my_generations.gen_ongoing
+        self.population = my_generations.list_of_roads
         self.population_sorted = None
+        "let's go with the functions"
         self.sorting_of_population(my_generations)
+        self.main(my_generations, my_gui)
+
+
+    def selection_of_fittest_parents_in_trio(self, a, b, c):
+        "create a list with the 3 potential parents"
+        trio_of_parents = [a, b, c]
+        "list used to sort them by length"
+        trio_of_parents_length = []
+        for i in trio_of_parents:
+            trio_of_parents_length.append(i.lenght_of_road())
+        y = [x for _, x in sorted(zip(trio_of_parents_length,
+                                      trio_of_parents))]
+        return [y[0], y[1]]       
+
+
+    def reproduction(self, parent_a, parent_b):
+        "select half of the parent_a, starting random, and fill with parent_b"
+        new_kid = Population(my_map, my_gui)
+        beg = rdm.randrange(len(parent_a.road_order))
+        new_kid.road_order = []
+        for i in range(beg, beg + len(parent_a.road_order)//2):
+            if i >= len(parent_a.road_order):
+                i -= len(parent_a.road_order)
+            new_kid.road_order.append(parent_a.road_order[i])
+        for i in parent_b.road_order:
+            if i not in new_kid.road_order:
+                new_kid.road_order.append(i)
+        return new_kid
+
+    def mutation(self, kid):
+        "inverse two consecutive cities in the road"
+        mutated_kid = kid
+        is_mutated = rdm.randrange(1, 101)/100.0
+        if is_mutated <= my_gui.mutation_rate:
+            a = rdm.randrange(len(kid.road_order))
+            b = a + 1
+            if a == len(kid.road_order)-1:
+                b = 0
+            mutated_kid.road_order[a], mutated_kid.road_order[b] = mutated_kid.road_order[b], mutated_kid.road_order[a]
+        return mutated_kid
 
     def sorting_of_population(self, my_generations):
-##        for i in my_generations.list_of_roads:
-            print(i.lenght_of_road())
+        "used to sort a complete population depending of the road length"
+        road_length= []
+        for i in self.population:
+            road_length.append(i.lenght_of_road())
+        self.population_sorted = [x for _,
+                                  x in sorted(zip(road_length,
+                                  self.population))]
+
+    def main(self, my_generations, my_gui):
+        """start by creating a list of roads that will be destroyed
+        not to touch the self.population list that might be usefull in the
+        futur"""
+        print(self.generation_number)
+        temp_list_of_roads = self.population[:]
+        rdm.shuffle(temp_list_of_roads)
+        new_list_of_roads = []
+        while temp_list_of_roads:
+            two_winners = self.selection_of_fittest_parents_in_trio(
+                     temp_list_of_roads.pop(),
+                     temp_list_of_roads.pop(),
+                     temp_list_of_roads.pop())
+            new_list_of_roads.append(two_winners[0])
+            new_list_of_roads.append(two_winners[1])
+            kid_of_winners = self.reproduction(two_winners[0], two_winners[1])
+            kid_mutated = self.mutation(kid_of_winners)
+            new_list_of_roads.append(kid_mutated)
+        redraw_cities_squares()
+        self.population_sorted[0].draw_road(my_gui)
+        my_generations.list_of_roads = new_list_of_roads
+            
 ###############################################################################
 
 
@@ -92,9 +161,10 @@ class List_of_generations(object):
         "this is the list of the road for each generations"
         self.list_of_roads = []
 
-    def go_from_gen_x_to_gen_y(self, x=1):
+    def go_from_gen_x_to_gen_y(self, x):
         for i in range(x):
             self.gen_ongoing += 1
+            time.sleep(my_gui.time_between_gen/1000)
             self.list_of_generations.append(Generations(self, my_gui, my_map))
 ###############################################################################
 
@@ -189,7 +259,7 @@ class MyGui(object):
 
         "variables related to mutation rate and other reproductive stuff"
         self.pop_size = 12
-        self.mutation_rate = 0.00
+        self.mutation_rate = 1.00
 
         """initialisation of initial list of roads to be transmitted to class"
         Generation"""
@@ -341,3 +411,4 @@ if __name__ == "__main__":
     my_generations = List_of_generations(my_gui, my_map)
     root.mainloop()
 ###############################################################################
+
