@@ -1,0 +1,9 @@
+import itertools
+import time
+liste = "abcdefghijklmnopqrstuvwxyz"
+for i in range(5, 14):
+    beg = time.time()
+    for p in itertools.permutations(liste[0:i]):
+        pass
+    end = time.time()
+    print(f"Nombre de villes: {i}, time needed to brute force: {end-beg} sec")
