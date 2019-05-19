@@ -394,15 +394,15 @@ please select Problem variables paremeters then generate list of roads")
 
         "initialisation of spinbox related to the mutation rate"
         self.spinbox3Val = tk.StringVar(self.frame, value=self.mutation_rate)
-        self.mutation_rate_sb = ttk.Spinbox(self.frame, from_=0.01, to=0.1,
-                                            increment=0.01, width=5,
+        self.mutation_rate_sb = ttk.Spinbox(self.frame, from_=0.001, to=0.03,
+                                            increment=0.002, width=5,
                                             textvariable=self.spinbox3Val,
                                             command=assign_mutation_rate)
         self.mutation_rate_sb.grid(row=3, column=1)
 
         "Initialisation of spinbox related to the population size"
         self.spinbox4Val = tk.StringVar(self.frame, value=self.pop_size)
-        self.pop_size_spinbox = ttk.Spinbox(self.frame, from_=12, to=3000,
+        self.pop_size_spinbox = ttk.Spinbox(self.frame, from_=12, to=30000,
                                             increment=3, width=5,
                                             textvariable=self.spinbox4Val,
                                             command=assign_pop_size)
