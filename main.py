@@ -6,6 +6,14 @@ import time as time
 
 
 # List of all fuctions for the software #######################################
+def reset():
+    global my_gui, my_map, my_generations
+    my_gui = MyGui(root)
+    my_gui.reset = 1
+    my_map = Map(my_gui)
+    my_generations = List_of_generations(my_gui, my_map)
+
+
 def redraw_cities_squares():
     "called if spinbox for cities square size is changed"
     my_gui.size_cities = int(my_gui.cities_square_size_sb.get())
@@ -58,10 +66,19 @@ def generate_initial_list_of_roads():
     my_gui.information_label["text"] = f"Generation of initial population done\
 , {len(my_generations.list_of_roads)} roads generated"
     my_gui.generation_of_initial_population["state"] = "disabled"
+    my_gui.nb_cities_spinbox["state"] = "disabled"
+    my_gui.pop_size_spinbox["state"] = "disabled"
+    my_gui.nb_generations_sb["state"] = "active"
+    my_gui.sorting_of_population_test_button["state"] = "active"
+    if my_generations.list_of_roads_sort is None:
+        my_generations.sorting_of_population()
 
 
 def start():
+    my_gui.reset = 0
+    my_gui.sorting_of_population_test_button["state"] = "disabled"
     my_generations.go_from_gen_x_to_gen_y(my_gui.nb_generations_to_run)
+    my_gui.information_label["text"] = f"                                    "
 ###############################################################################
 
 
@@ -72,11 +89,8 @@ class Generations(object):
         "initialisation of all variables"
         self.generation_number = my_generations.gen_ongoing
         self.population = my_generations.list_of_roads
-        self.population_sorted = None
         "let's go with the functions"
-        self.sorting_of_population(my_generations)
         self.main(my_generations, my_gui)
-
 
     def selection_of_fittest_parents_in_trio(self, a, b, c):
         "create a list with the 3 potential parents"
@@ -85,10 +99,10 @@ class Generations(object):
         trio_of_parents_length = []
         for i in trio_of_parents:
             trio_of_parents_length.append(i.lenght_of_road())
-        y = [x for _, x in sorted(zip(trio_of_parents_length,
-                                      trio_of_parents))]
-        return [y[0], y[1]]       
-
+        y = sorted(trio_of_parents, key=lambda parent: parent.lenght_of_road())
+        """[x for _, x in sorted(zip(trio_of_parents_length,
+                                      trio_of_parents))]"""
+        return [y[0], y[1]]
 
     def reproduction(self, parent_a, parent_b):
         "select half of the parent_a, starting random, and fill with parent_b"
@@ -106,30 +120,23 @@ class Generations(object):
 
     def mutation(self, kid):
         "inverse two consecutive cities in the road"
-        mutated_kid = kid
-        is_mutated = rdm.randrange(1, 101)/100.0
-        if is_mutated <= my_gui.mutation_rate:
-            a = rdm.randrange(len(kid.road_order))
-            b = a + 1
-            if a == len(kid.road_order)-1:
-                b = 0
-            mutated_kid.road_order[a], mutated_kid.road_order[b] = mutated_kid.road_order[b], mutated_kid.road_order[a]
-        return mutated_kid
+        iterator = 0
+        m_kid = kid
+        for changed in range(len(m_kid.road_order)):
+            if rdm.random() < my_gui.mutation_rate:
+                iterator += 1
+                changed_with = int(rdm.random() * len(m_kid.road_order))
 
-    def sorting_of_population(self, my_generations):
-        "used to sort a complete population depending of the road length"
-        road_length= []
-        for i in self.population:
-            road_length.append(i.lenght_of_road())
-        self.population_sorted = [x for _,
-                                  x in sorted(zip(road_length,
-                                  self.population))]
+                city_1 = m_kid.road_order[changed]
+                city_2 = m_kid.road_order[changed_with]
+                m_kid.road_order[changed] = city_2
+                m_kid.road_order[changed_with] = city_1
+        return m_kid
 
     def main(self, my_generations, my_gui):
         """start by creating a list of roads that will be destroyed
         not to touch the self.population list that might be usefull in the
         futur"""
-        print(self.generation_number)
         temp_list_of_roads = self.population[:]
         rdm.shuffle(temp_list_of_roads)
         new_list_of_roads = []
@@ -143,10 +150,7 @@ class Generations(object):
             kid_of_winners = self.reproduction(two_winners[0], two_winners[1])
             kid_mutated = self.mutation(kid_of_winners)
             new_list_of_roads.append(kid_mutated)
-        redraw_cities_squares()
-        self.population_sorted[0].draw_road(my_gui)
         my_generations.list_of_roads = new_list_of_roads
-            
 ###############################################################################
 
 
@@ -156,16 +160,36 @@ class List_of_generations(object):
     def __init__(self, my_gui, my_map):
         "number of the previous generation before creating the new one"
         self.gen_ongoing = 0
-        "keep track of all generations"
-        self.list_of_generations = []
         "this is the list of the road for each generations"
         self.list_of_roads = []
+        self.list_of_roads_sort = None
+
+    def sorting_of_population(self):
+        "used to sort a complete population depending of the road length"
+        road_length = []
+        for i in self.list_of_roads:
+            road_length.append(i.lenght_of_road())
+        self.list_of_roads_sort = sorted(self.list_of_roads,
+                                         key=lambda pop: pop.lenght_of_road())
 
     def go_from_gen_x_to_gen_y(self, x):
-        for i in range(x):
+        if x > 0:
             self.gen_ongoing += 1
             time.sleep(my_gui.time_between_gen/1000)
-            self.list_of_generations.append(Generations(self, my_gui, my_map))
+            Generations(self, my_gui, my_map)
+            self.sorting_of_population()
+            my_gui.canvas.delete("all")
+            redraw_cities_squares()
+            self.list_of_roads_sort[0].draw_road(my_gui)
+            if my_gui.reset == 1:
+                x = 1
+                reset()
+            if x == 1 and my_gui.reset == 0:
+                my_gui.sorting_of_population_test_button["state"] = "active"
+            my_gui.canvas.after(1, self.go_from_gen_x_to_gen_y, x-1)
+            my_gui.information_label["text"] = f"Generation nb: \
+{self.gen_ongoing}, shortest\
+ road : {round(self.list_of_roads_sort[0].lenght_of_road())}"
 ###############################################################################
 
 
@@ -249,17 +273,18 @@ class MyGui(object):
         self.initial_height = 624
         self.initial_width = 772
         self.canvas_size = 600
-        root.geometry(f"{self.initial_width}x{self.initial_height}+1200+10")
+        root.geometry(f"{self.initial_width}x{self.initial_height}")
         root.title("The SalesMan Problem solved with genetic")
         root.resizable(width=False, height=False)
+        self.reset = 1
 
         "variables related to cities"
         self.size_cities = 1
         self.nb_cities = 25
 
         "variables related to mutation rate and other reproductive stuff"
-        self.pop_size = 12
-        self.mutation_rate = 1.00
+        self.pop_size = 1200
+        self.mutation_rate = 0.05
 
         """initialisation of initial list of roads to be transmitted to class"
         Generation"""
@@ -267,7 +292,7 @@ class MyGui(object):
 
         "variables related to passing of generations"
         self.time_between_gen = 0
-        self.nb_generations_to_run = 1
+        self.nb_generations_to_run = 100
 
         "functions to create widgets"
         self.getMainWidgets(root)
@@ -327,7 +352,8 @@ class MyGui(object):
         self.time_between_gen_label.grid(row=3, column=0, sticky=tk.EW)
 
         "initialisation of labels related to progress of solution"
-        self.information_label = tk.Label(root, text="Waiting")
+        self.information_label = tk.Label(root, text="Waiting, \
+please select Problem variables paremeters then generate list of roads")
         self.information_label.grid(row=2, column=0, sticky=tk.W)
 
     def getEntryWidgets(self, root):
@@ -335,6 +361,9 @@ class MyGui(object):
         pass
 
     def getButtonWidgets(self, root):
+        "Initialisation of reset button"
+        self.reset_button = tk.Button(root, text="RESET", command=reset)
+        self.reset_button.grid(row=2, column=1, sticky=tk.EW)
         "Initialisation of all buttons widgets"
         self.generation_of_initial_population = tk.Button(
                 self.buttonframe,
@@ -347,7 +376,7 @@ class MyGui(object):
         self.sorting_of_population_test_button = tk.Button(
                 self.buttonframe,
                 text="go for n generations",
-                width=20,
+                width=20, state="disabled",
                 command=start)
         self.sorting_of_population_test_button.grid(row=4, column=0,
                                                     columnspan=2)
@@ -373,7 +402,7 @@ class MyGui(object):
 
         "initialisation of spinbox related to the mutation rate"
         self.spinbox3Val = tk.StringVar(self.frame, value=self.mutation_rate)
-        self.mutation_rate_sb = ttk.Spinbox(self.frame, from_=0, to=1,
+        self.mutation_rate_sb = ttk.Spinbox(self.frame, from_=0, to=0.1,
                                             increment=0.01, width=5,
                                             textvariable=self.spinbox3Val,
                                             command=assign_mutation_rate)
@@ -387,16 +416,19 @@ class MyGui(object):
                                             command=assign_pop_size)
         self.pop_size_spinbox.grid(row=4, column=1)
         "initialisation of spinbox for the number of generations to run"
-        self.spinbox5Val = tk.StringVar(self.buttonframe, value=1)
-        self.nb_generations_sb = ttk.Spinbox(self.buttonframe, from_=1, to=500,
+        self.spinbox5Val = tk.StringVar(self.buttonframe,
+                                        value=self.nb_generations_to_run)
+        self.nb_generations_sb = ttk.Spinbox(self.buttonframe, from_=1,
+                                             to=20000,
                                              increment=1, width=5,
+                                             state="disabled",
                                              textvariable=self.spinbox5Val,
                                              command=assign_bn_generations)
         self.nb_generations_sb.grid(row=2, column=1)
         "initialisation of spinbox for time in ms between generations"
         self.spinbox6Val = tk.StringVar(self.buttonframe, value=0)
         self.time_between_gen_sb = ttk.Spinbox(self.buttonframe, from_=0,
-                                               to=1000, increment=250, width=5,
+                                               to=1000, increment=50, width=5,
                                                textvariable=self.spinbox6Val,
                                                command=assign_time_between_gen)
         self.time_between_gen_sb.grid(row=3, column=1)
@@ -406,9 +438,9 @@ class MyGui(object):
 # Main Program (To clean)######################################################
 if __name__ == "__main__":
     root = tk.Tk()
-    my_gui = MyGui(root)
-    my_map = Map(my_gui)
-    my_generations = List_of_generations(my_gui, my_map)
+    my_gui = None
+    my_map = None
+    my_generations = None
+    reset()
     root.mainloop()
 ###############################################################################
-
