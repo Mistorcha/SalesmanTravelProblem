@@ -78,7 +78,8 @@ def start():
     my_gui.reset = 0
     my_gui.sorting_of_population_test_button["state"] = "disabled"
     my_generations.go_from_gen_x_to_gen_y(my_gui.nb_generations_to_run)
-    my_gui.information_label["text"] = f"                                    "
+    my_gui.information_label["text"] = f"                                \
+                                                 "
 ###############################################################################
 
 
@@ -284,7 +285,7 @@ class MyGui(object):
 
         "variables related to mutation rate and other reproductive stuff"
         self.pop_size = 1200
-        self.mutation_rate = 0.05
+        self.mutation_rate = 0.01
 
         """initialisation of initial list of roads to be transmitted to class"
         Generation"""
@@ -302,11 +303,6 @@ class MyGui(object):
         self.getSpinboxWidgets(root)
         """self.refresh_info()"""
 
-    """def refresh_info(self):
-        "Refresh informations of labels every 100 ms"
-        self.windows_geometry["text"] = root.winfo_geometry()
-        self.windows_geometry.after(100, self.refresh_info)"""
-
     def getMainWidgets(self, root):
         "Initialisation of canvas"
         self.canvas = tk.Canvas(root, height=self.canvas_size,
@@ -320,10 +316,6 @@ class MyGui(object):
         self.buttonframe.grid(row=1, column=1, sticky=tk.NSEW)
 
     def getLabelsWidgets(self, root):
-        """Initialisation of labels widgets related to positionning of windows"
-        self.windows_geometry = tk.Label(root, text="test")
-        self.windows_geometry.grid(row=2, column=1)"""
-
         "initialisation of label widgets related to variables of the problem"
         self.FrameVariablesTitle = tk.Label(self.frame,
                                             text="Problem variables")
@@ -402,7 +394,7 @@ please select Problem variables paremeters then generate list of roads")
 
         "initialisation of spinbox related to the mutation rate"
         self.spinbox3Val = tk.StringVar(self.frame, value=self.mutation_rate)
-        self.mutation_rate_sb = ttk.Spinbox(self.frame, from_=0, to=0.1,
+        self.mutation_rate_sb = ttk.Spinbox(self.frame, from_=0.01, to=0.1,
                                             increment=0.01, width=5,
                                             textvariable=self.spinbox3Val,
                                             command=assign_mutation_rate)
@@ -418,9 +410,9 @@ please select Problem variables paremeters then generate list of roads")
         "initialisation of spinbox for the number of generations to run"
         self.spinbox5Val = tk.StringVar(self.buttonframe,
                                         value=self.nb_generations_to_run)
-        self.nb_generations_sb = ttk.Spinbox(self.buttonframe, from_=1,
+        self.nb_generations_sb = ttk.Spinbox(self.buttonframe, from_=100,
                                              to=20000,
-                                             increment=1, width=5,
+                                             increment=100, width=5,
                                              state="disabled",
                                              textvariable=self.spinbox5Val,
                                              command=assign_bn_generations)
