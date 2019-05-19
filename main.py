@@ -6,14 +6,6 @@ import time as time
 
 
 # List of all fuctions for the software #######################################
-def reset():
-    global my_gui, my_map, my_generations
-    my_gui = MyGui(root)
-    my_gui.reset = 1
-    my_map = Map(my_gui)
-    my_generations = List_of_generations(my_gui, my_map)
-
-
 def redraw_cities_squares():
     "called if spinbox for cities square size is changed"
     my_gui.size_cities = int(my_gui.cities_square_size_sb.get())
@@ -75,11 +67,26 @@ def generate_initial_list_of_roads():
 
 
 def start():
-    my_gui.reset = 0
     my_gui.sorting_of_population_test_button["state"] = "disabled"
+    my_generations.drawing_graph = 1
+    try:
+        a.draw_graph()
+    except:
+        pass
     my_generations.go_from_gen_x_to_gen_y(my_gui.nb_generations_to_run)
     my_gui.information_label["text"] = f"                                \
-                                                 "
+                                                    "
+
+
+def start_stop_graphs():
+    global a
+    try:
+        if a.toplevel.winfo_exists():
+            a.toplevel.destroy()
+        else:
+            a = Extend(root, my_gui)
+    except:
+        a = Extend(root, my_gui)
 ###############################################################################
 
 
@@ -90,6 +97,7 @@ class Generations(object):
         "initialisation of all variables"
         self.generation_number = my_generations.gen_ongoing
         self.population = my_generations.list_of_roads
+        self.population_sorted = my_generations.list_of_roads_sort
         "let's go with the functions"
         self.main(my_generations, my_gui)
 
@@ -101,8 +109,6 @@ class Generations(object):
         for i in trio_of_parents:
             trio_of_parents_length.append(i.lenght_of_road())
         y = sorted(trio_of_parents, key=lambda parent: parent.lenght_of_road())
-        """[x for _, x in sorted(zip(trio_of_parents_length,
-                                      trio_of_parents))]"""
         return [y[0], y[1]]
 
     def reproduction(self, parent_a, parent_b):
@@ -161,9 +167,14 @@ class List_of_generations(object):
     def __init__(self, my_gui, my_map):
         "number of the previous generation before creating the new one"
         self.gen_ongoing = 0
+        self.list_of_generations = []
         "this is the list of the road for each generations"
         self.list_of_roads = []
         self.list_of_roads_sort = None
+        self.gen_of_min_road = None
+        self.shortest_road = 1000000000000000000
+        "Used to draw_graph or not"
+        self.drawing_graph = 0
 
     def sorting_of_population(self):
         "used to sort a complete population depending of the road length"
@@ -172,25 +183,27 @@ class List_of_generations(object):
             road_length.append(i.lenght_of_road())
         self.list_of_roads_sort = sorted(self.list_of_roads,
                                          key=lambda pop: pop.lenght_of_road())
+        if self.shortest_road > self.list_of_roads_sort[0].road_lenght:
+            self.shortest_road = self.list_of_roads_sort[0].road_lenght
+            self.gen_of_min_road = self.gen_ongoing
 
     def go_from_gen_x_to_gen_y(self, x):
         if x > 0:
             self.gen_ongoing += 1
             time.sleep(my_gui.time_between_gen/1000)
-            Generations(self, my_gui, my_map)
             self.sorting_of_population()
+            self.list_of_generations.append(Generations(self, my_gui, my_map))
             my_gui.canvas.delete("all")
             redraw_cities_squares()
             self.list_of_roads_sort[0].draw_road(my_gui)
-            if my_gui.reset == 1:
-                x = 1
-                reset()
-            if x == 1 and my_gui.reset == 0:
+            if x == 1:
                 my_gui.sorting_of_population_test_button["state"] = "active"
-            my_gui.canvas.after(1, self.go_from_gen_x_to_gen_y, x-1)
+                self.drawing_graph = 0
             my_gui.information_label["text"] = f"Generation nb: \
 {self.gen_ongoing}, shortest\
- road : {round(self.list_of_roads_sort[0].lenght_of_road())}"
+ road : {round(self.list_of_roads_sort[0].lenght_of_road())}.\
+ Shortest road found at gen : {self.gen_of_min_road}"
+            my_gui.canvas.after(1, self.go_from_gen_x_to_gen_y, x-1)
 ###############################################################################
 
 
@@ -266,6 +279,52 @@ class Population(object):
 ###############################################################################
 
 
+# test for other gui class to extend the first one#############################
+class Extend(object):
+
+    def __init__(self, root, my_gui):
+        "initialisation of size variables for the windows"
+        self.h = my_gui.initial_height*2//3
+        self.w = my_gui.initial_width
+        self.dw = my_gui.initial_width+10
+        "creation of the new windows"
+        self.toplevel = tk.Toplevel()
+        self.toplevel.title("Graph test")
+        self.toplevel.geometry(f"{self.w}x{self.h}+{self.dw}+0")
+        self.toplevel.resizable(width=False, height=False)
+        "functions to create the differents widgets"
+        self.getMainWidgets()
+        "start drawing immediatly"
+        self.draw_graph()
+
+    def getMainWidgets(self):
+        self.canvas = tk.Canvas(self.toplevel, width=self.w, height=self.h,
+                                bg="black")
+        self.canvas.grid(row=0, column=0, columnspan=4)
+
+    def draw_graph(self):
+        tempo = my_generations.list_of_generations
+        self.canvas.create_line(10, 378, 10, 20, arrow=tk.LAST, fill="white")
+        self.canvas.create_line(10, 378, 764, 378, arrow=tk.LAST, fill="white")
+        if my_generations.drawing_graph == 1:
+            self.canvas.delete("all")
+            self.canvas.create_line(10, 378, 10, 20,
+                                    fill="white", arrow=tk.LAST)
+            self.canvas.create_line(10, 378, 764, 378,
+                                    fill="white", arrow=tk.LAST)
+            point_every_x_gens = len(tempo) // 754 + 1
+            for i in range(0, len(tempo), point_every_x_gens):
+                j = point_every_x_gens
+                hauteur = tempo[i].population_sorted[0].lenght_of_road()
+                hauteur_maxi = tempo[0].population_sorted[0].lenght_of_road()
+                hauteur = (hauteur/hauteur_maxi)
+                hauteur = (1-hauteur)*368 + 20
+                self.canvas.create_line(i//j+20, hauteur, i//j + 21, hauteur,
+                                        fill="white")
+            self.canvas.after(250, self.draw_graph)
+###############################################################################
+
+
 # Gui class ###################################################################
 class MyGui(object):
 
@@ -274,10 +333,9 @@ class MyGui(object):
         self.initial_height = 624
         self.initial_width = 772
         self.canvas_size = 600
-        root.geometry(f"{self.initial_width}x{self.initial_height}")
+        root.geometry(f"{self.initial_width}x{self.initial_height}+10+10")
         root.title("The SalesMan Problem solved with genetic")
         root.resizable(width=False, height=False)
-        self.reset = 1
 
         "variables related to cities"
         self.size_cities = 1
@@ -353,9 +411,9 @@ please select Problem variables paremeters then generate list of roads")
         pass
 
     def getButtonWidgets(self, root):
-        "Initialisation of reset button"
-        self.reset_button = tk.Button(root, text="RESET", command=reset)
-        self.reset_button.grid(row=2, column=1, sticky=tk.EW)
+        "Initialisation of quit button"
+        self.quit_button = tk.Button(root, text="Quit", command=root.quit)
+        self.quit_button.grid(row=2, column=1, sticky=tk.EW)
         "Initialisation of all buttons widgets"
         self.generation_of_initial_population = tk.Button(
                 self.buttonframe,
@@ -372,6 +430,9 @@ please select Problem variables paremeters then generate list of roads")
                 command=start)
         self.sorting_of_population_test_button.grid(row=4, column=0,
                                                     columnspan=2)
+        self.graph_button = tk.Button(self.buttonframe, text="Graph",
+                                      width=20, command=start_stop_graphs)
+        self.graph_button.grid(row=5, column=0, columnspan=2)
 
     def getSpinboxWidgets(self, root):
         "initiation spinbox related to size of the square of the cities"
@@ -430,9 +491,11 @@ please select Problem variables paremeters then generate list of roads")
 # Main Program (To clean)######################################################
 if __name__ == "__main__":
     root = tk.Tk()
-    my_gui = None
-    my_map = None
-    my_generations = None
-    reset()
+    my_gui = MyGui(root)
+    a = Extend(root, my_gui)
+    a.toplevel.destroy()
+    my_map = Map(my_gui)
+    my_generations = List_of_generations(my_gui, my_map)
     root.mainloop()
+    root.destroy()
 ###############################################################################
