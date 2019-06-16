@@ -41,15 +41,6 @@ def assign_time_between_gen():
     my_gui.time_between_gen = int(my_gui.time_between_gen_sb.get())
 
 
-def draw_population_road(i):
-    "called by generate_initial_list_of_roads function"
-    if i >= 0:
-        my_gui.canvas.delete("all")
-        my_map.draw_cities(my_gui)
-        my_gui.list_of_roads[i].draw_road(my_gui)
-        my_gui.canvas.after(1, draw_population_road, i-1)
-
-
 def generate_initial_list_of_roads():
     "used to generate a list of objects Population"
     my_generations.list_of_roads = []
@@ -70,7 +61,7 @@ def start():
     my_gui.sorting_of_population_test_button["state"] = "disabled"
     my_generations.drawing_graph = 1
     try:
-        a.draw_graph()
+        graph_windows.draw_graph()
     except:
         pass
     my_generations.go_from_gen_x_to_gen_y(my_gui.nb_generations_to_run)
@@ -79,14 +70,41 @@ def start():
 
 
 def start_stop_graphs():
-    global a
+    global graph_windows
     try:
-        if a.toplevel.winfo_exists():
-            a.toplevel.destroy()
+        if graph_windows.toplevel.winfo_exists():
+            graph_windows.toplevel.destroy()
         else:
-            a = Extend(root, my_gui)
+            graph_windows = Extend(root, my_gui)
     except:
-        a = Extend(root, my_gui)
+        graph_windows = Extend(root, my_gui)
+
+
+def load_city():
+    file = open("city.txt", "r")
+    my_map.list_cities = []
+    temp_list = []
+    lines = file.readlines()
+    number_of_coordinates = len(lines)
+    file.close()
+    file = open("city.txt", "r")
+    for i in range(number_of_coordinates):
+        lines = file.readline()
+        lines.replace("\n", "")
+        temp_list.append(int(lines))
+    for i in range(0, len(temp_list), 2):
+        my_map.list_cities.append([temp_list[i], temp_list[i+1]])
+    my_gui.canvas.delete("all")
+    my_map.draw_cities(my_gui)
+
+
+def save_city():
+    file = open("city.txt", "w")
+    for i in my_map.list_cities:
+        for j in i:
+            file.write(str(j))
+            file.write("\n")
+    file.close()
 ###############################################################################
 
 
@@ -183,7 +201,7 @@ class List_of_generations(object):
             road_length.append(i.lenght_of_road())
         self.list_of_roads_sort = sorted(self.list_of_roads,
                                          key=lambda pop: pop.lenght_of_road())
-        if self.shortest_road > self.list_of_roads_sort[0].road_lenght:
+        if self.shortest_road > self.list_of_roads_sort[0].road_lenght + 1:
             self.shortest_road = self.list_of_roads_sort[0].road_lenght
             self.gen_of_min_road = self.gen_ongoing
 
@@ -342,8 +360,8 @@ class MyGui(object):
         self.nb_cities = 25
 
         "variables related to mutation rate and other reproductive stuff"
-        self.pop_size = 1200
-        self.mutation_rate = 0.01
+        self.pop_size = 600
+        self.mutation_rate = 0.004
 
         """initialisation of initial list of roads to be transmitted to class"
         Generation"""
@@ -351,7 +369,7 @@ class MyGui(object):
 
         "variables related to passing of generations"
         self.time_between_gen = 0
-        self.nb_generations_to_run = 100
+        self.nb_generations_to_run = 2500
 
         "functions to create widgets"
         self.getMainWidgets(root)
@@ -383,11 +401,11 @@ class MyGui(object):
         self.size_cities_label.grid(row=1, column=0, sticky=tk.EW)
         self.number_of_cities_label = tk.Label(self.frame,
                                                text="Nb of Cities: ")
-        self.number_of_cities_label.grid(row=2, column=0, sticky=tk.EW)
+        self.number_of_cities_label.grid(row=3, column=0, sticky=tk.EW)
         self.mutation_rate_label = tk.Label(self.frame, text="Mutation rate: ")
-        self.mutation_rate_label.grid(row=3, column=0, sticky=tk.EW)
+        self.mutation_rate_label.grid(row=5, column=0, sticky=tk.EW)
         self.population_size_label = tk.Label(self.frame, text="Pop. Size: ")
-        self.population_size_label.grid(row=4, column=0, sticky=tk.EW)
+        self.population_size_label.grid(row=6, column=0, sticky=tk.EW)
         "Empty labels to separate variables from buttons"
 
         "initialisation of label widgets related to launch of solving problem"
@@ -433,6 +451,14 @@ please select Problem variables paremeters then generate list of roads")
         self.graph_button = tk.Button(self.buttonframe, text="Graph",
                                       width=20, command=start_stop_graphs)
         self.graph_button.grid(row=5, column=0, columnspan=2)
+        "initialisation of button to load saved city"
+        self.load_saved_city = tk.Button(self.frame, text="Load city",
+                                         width=10, command=load_city)
+        self.load_saved_city.grid(row=2, column=0)
+        "initialisation of button to save city"
+        self.save_city = tk.Button(self.frame, text="Save city",
+                                   width=10, command=save_city)
+        self.save_city.grid(row=4, column=0)
 
     def getSpinboxWidgets(self, root):
         "initiation spinbox related to size of the square of the cities"
@@ -451,7 +477,7 @@ please select Problem variables paremeters then generate list of roads")
                                              increment=1, width=5,
                                              textvariable=self.spinbox2Val,
                                              command=assign_nb_cities)
-        self.nb_cities_spinbox.grid(row=2, column=1)
+        self.nb_cities_spinbox.grid(row=3, column=1)
 
         "initialisation of spinbox related to the mutation rate"
         self.spinbox3Val = tk.StringVar(self.frame, value=self.mutation_rate)
@@ -459,15 +485,15 @@ please select Problem variables paremeters then generate list of roads")
                                             increment=0.002, width=5,
                                             textvariable=self.spinbox3Val,
                                             command=assign_mutation_rate)
-        self.mutation_rate_sb.grid(row=3, column=1)
+        self.mutation_rate_sb.grid(row=5, column=1)
 
         "Initialisation of spinbox related to the population size"
         self.spinbox4Val = tk.StringVar(self.frame, value=self.pop_size)
-        self.pop_size_spinbox = ttk.Spinbox(self.frame, from_=12, to=30000,
+        self.pop_size_spinbox = ttk.Spinbox(self.frame, from_=12, to=3000,
                                             increment=3, width=5,
                                             textvariable=self.spinbox4Val,
                                             command=assign_pop_size)
-        self.pop_size_spinbox.grid(row=4, column=1)
+        self.pop_size_spinbox.grid(row=6, column=1)
         "initialisation of spinbox for the number of generations to run"
         self.spinbox5Val = tk.StringVar(self.buttonframe,
                                         value=self.nb_generations_to_run)
@@ -492,10 +518,10 @@ please select Problem variables paremeters then generate list of roads")
 if __name__ == "__main__":
     root = tk.Tk()
     my_gui = MyGui(root)
-    a = Extend(root, my_gui)
-    a.toplevel.destroy()
     my_map = Map(my_gui)
     my_generations = List_of_generations(my_gui, my_map)
+    graph_windows = Extend(root, my_gui)
+    graph_windows.toplevel.destroy()
     root.mainloop()
     root.destroy()
 ###############################################################################
